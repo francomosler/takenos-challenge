@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Country {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  teams Team[]
+}
+
+model Team {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  countryId Int?
+
+  country Country? @relation(fields: [countryId], references: [id])
+
+
+  drawTeamPots DrawTeamPot[]
+  homeMatches  Match[] @relation("HomeTeam")
+  awayMatches  Match[] @relation("AwayTeam")
+}
+model Draw {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  drawTeamPots DrawTeamPot[]
+  matches      Match[]
+}
+
+model Pot {
+  id   Int    @id // 1..4
+  name String @unique // "Pot 1"..."Pot 4"
+
+  drawTeamPots DrawTeamPot[]
+}
+
+model DrawTeamPot {
+  drawId Int
+  teamId Int
+  potId  Int
+
+  draw Draw @relation(fields: [drawId], references: [id])
+  team Team @relation(fields: [teamId], references: [id])
+  pot  Pot  @relation(fields: [potId], references: [id])
+
+  @@unique([drawId, teamId])
+  @@index([drawId, potId])
+}
+
+model Match {
+  id         Int @id @default(autoincrement())
+  drawId     Int
+  homeTeamId Int
+  awayTeamId Int
+  matchDay   Int // 1..8
+
+  draw     Draw @relation(fields: [drawId], references: [id])
+  homeTeam Team @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam Team @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  @@index([drawId])
+  @@index([matchDay])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+}
