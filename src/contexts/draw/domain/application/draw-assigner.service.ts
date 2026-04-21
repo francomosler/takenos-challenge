@@ -5,7 +5,7 @@ const MAX_MATCHES = 8;
 const MAX_HOME = 4;
 const MAX_AWAY = 4;
 const MATCH_DAYS = 8;
-const MAX_COUNTRY_OPPONENTS = 3;
+const MAX_COUNTRY_OPPONENTS = 2;
 
 type TeamState = {
   opponents: Set<number>;
@@ -25,7 +25,7 @@ export class DrawService {
     
     // Try up to 500 times to generate a valid draw
     for (let attempt = 0; attempt < 500; attempt++) {
-      const result = this.tryGenerateMatches(teams, potAssignments, String(drawId));
+      const result = this.tryGenerateMatches(teams, potAssignments, drawId);
 
       // Validate that all teams have exactly 8 matches
       const allTeamsComplete = teams.every(team => {
@@ -50,7 +50,7 @@ export class DrawService {
   private static tryGenerateMatches(
     teams: Team[],
     potAssignments: Map<number, number>,
-    drawId: any
+    drawId: number
   ): Match[] {
     const states = new Map<number, TeamState>();
     const matches: Match[] = [];

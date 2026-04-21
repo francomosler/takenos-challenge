@@ -50,8 +50,19 @@ export class SearchMatchesService {
   ) {}
 
   async run(params: SearchMatchesParams): Promise<SearchMatchesResult> {
+    const DEFAULT_LIMIT = 10;
+    const MAX_LIMIT = 100;
+
+    if (params.page !== undefined && params.page < 1) {
+      throw new Error("Page must be greater than 0");
+    }
+
     const page = params.page || 1;
-    const limit = params.limit || 10;
+
+    let limit = params.limit || DEFAULT_LIMIT;
+    if (limit > MAX_LIMIT) {
+      limit = DEFAULT_LIMIT;
+    }
 
     const filters: MatchFilters = {};
     if (params.teamId) {
