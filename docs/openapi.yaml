@@ -1,0 +1,354 @@
+openapi: 3.0.3
+info:
+  title: Champions League Draw API
+  version: 1.0.0
+  description: |
+    API para generar y consultar el sorteo de la Champions League en formato liga suiza
+    (36 equipos, 8 jornadas, 144 partidos).
+
+    ### Reglas del dominio
+    - Cada equipo juega exactamente 8 partidos (4 como local, 4 como visitante).
+    - Cada equipo enfrenta a 2 equipos de cada bombo.
+    - Un equipo no puede enfrentar a otro del mismo país.
+    - Máximo 2 rivales por país distinto.
+    - Cada equipo juega exactamente una vez por jornada.
+
+servers:
+  - url: http://localhost:8000
+    description: Desarrollo local
+
+tags:
+  - name: Health
+  - name: Draw
+  - name: Matches
+  - name: Teams
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        "200":
+          description: Servicio operativo.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service, timestamp]
+                properties:
+                  status: { type: string, example: ok }
+                  service: { type: string, example: champions-league-draw-api }
+                  timestamp: { type: string, format: date-time }
+
+  /draw:
+    post:
+      tags: [Draw]
+      summary: Crear sorteo
+      description: Genera el sorteo con los 144 partidos. Es idempotente a nivel de recurso — si ya existe un sorteo, retorna 409.
+      responses:
+        "201":
+          description: Sorteo creado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Draw created successfully }
+        "409":
+          description: Ya existe un sorteo.
+          content:
+            text/plain:
+              schema: { type: string, example: Draw already exists }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    get:
+      tags: [Draw]
+      summary: Obtener sorteo actual
+      responses:
+        "200":
+          description: Sorteo actual con bombos y partidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Draw"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Draw]
+      summary: Eliminar sorteo actual
+      responses:
+        "200":
+          description: Sorteo eliminado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Draw deleted successfully }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /draw/statistics:
+    get:
+      tags: [Draw]
+      summary: Estadísticas agregadas del sorteo
+      responses:
+        "200":
+          description: Estadísticas calculadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrawStatistics"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /matches:
+    get:
+      tags: [Matches]
+      summary: Listar partidos con filtros, paginación y ordenamiento
+      parameters:
+        - in: query
+          name: teamId
+          schema: { type: integer, minimum: 1 }
+          description: Filtra partidos en los que participe el equipo.
+        - in: query
+          name: countryId
+          schema: { type: integer, minimum: 1 }
+          description: Filtra partidos donde alguno de los equipos pertenezca al país.
+        - in: query
+          name: matchDay
+          schema: { type: integer, minimum: 1, maximum: 8 }
+          description: Jornada exacta.
+        - in: query
+          name: matchDayFrom
+          schema: { type: integer, minimum: 1, maximum: 8 }
+          description: Jornada inicial del rango (inclusivo).
+        - in: query
+          name: matchDayTo
+          schema: { type: integer, minimum: 1, maximum: 8 }
+          description: Jornada final del rango (inclusivo).
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [matchDay, id, homeTeam, awayTeam]
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+      responses:
+        "200":
+          description: Resultados paginados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchMatchesResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /matches/{id}:
+    get:
+      tags: [Matches]
+      summary: Detalle de un partido
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Partido encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /teams:
+    get:
+      tags: [Teams]
+      summary: Listar equipos
+      parameters:
+        - in: query
+          name: countryId
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: search
+          schema: { type: string }
+          description: Búsqueda parcial por nombre.
+      responses:
+        "200":
+          description: Lista de equipos.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  teams:
+                    type: array
+                    items: { $ref: "#/components/schemas/Team" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /teams/{id}:
+    get:
+      tags: [Teams]
+      summary: Detalle de un equipo con sus partidos
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Equipo y partidos del sorteo actual (vacío si aún no hay sorteo).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  team: { $ref: "#/components/schemas/Team" }
+                  matches:
+                    type: array
+                    items: { $ref: "#/components/schemas/Match" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+components:
+  schemas:
+    Country:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string, example: Spain }
+
+    Team:
+      type: object
+      required: [id, name, country]
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: Real Madrid }
+        country: { $ref: "#/components/schemas/Country" }
+
+    Match:
+      type: object
+      required: [id, homeTeam, awayTeam, matchDay]
+      properties:
+        id: { type: string, example: "42" }
+        homeTeam: { $ref: "#/components/schemas/Team" }
+        awayTeam: { $ref: "#/components/schemas/Team" }
+        matchDay: { type: integer, minimum: 1, maximum: 8 }
+
+    Pagination:
+      type: object
+      required: [page, limit, total, totalPages]
+      properties:
+        page: { type: integer, example: 1 }
+        limit: { type: integer, example: 10 }
+        total: { type: integer, example: 144 }
+        totalPages: { type: integer, example: 15 }
+
+    SearchMatchesResponse:
+      type: object
+      required: [matches, pagination]
+      properties:
+        matches:
+          type: array
+          items: { $ref: "#/components/schemas/Match" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+
+    Pot:
+      type: object
+      required: [id, teams]
+      properties:
+        id: { type: integer, minimum: 1, maximum: 4 }
+        teams:
+          type: array
+          items: { $ref: "#/components/schemas/Team" }
+
+    Draw:
+      type: object
+      required: [id, createdAt, pots, matches]
+      properties:
+        id: { type: integer }
+        createdAt: { type: string, format: date-time }
+        pots:
+          type: array
+          items: { $ref: "#/components/schemas/Pot" }
+        matches:
+          type: array
+          items: { $ref: "#/components/schemas/Match" }
+
+    DrawStatistics:
+      type: object
+      required:
+        [
+          drawId,
+          createdAt,
+          totalTeams,
+          totalCountries,
+          totalMatches,
+          matchesPerMatchDay,
+          teamsPerPot,
+          teamsPerCountry,
+        ]
+      properties:
+        drawId: { type: integer }
+        createdAt: { type: string, format: date-time }
+        totalTeams: { type: integer, example: 36 }
+        totalCountries: { type: integer }
+        totalMatches: { type: integer, example: 144 }
+        matchesPerMatchDay:
+          type: array
+          items:
+            type: object
+            properties:
+              matchDay: { type: integer }
+              count: { type: integer }
+        teamsPerPot:
+          type: array
+          items:
+            type: object
+            properties:
+              potId: { type: integer }
+              count: { type: integer }
+        teamsPerCountry:
+          type: array
+          items:
+            type: object
+            properties:
+              countryId: { type: integer }
+              countryName: { type: string }
+              count: { type: integer }
+
+    ErrorResponse:
+      type: object
+      properties:
+        message: { type: string }
+
+  responses:
+    BadRequest:
+      description: Parámetros inválidos.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NotFound:
+      description: Recurso no encontrado.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }

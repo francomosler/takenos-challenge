@@ -1,329 +1,148 @@
-# Champions League Draw API - Backend Challenge
+# Fixes implementados (notas de ingeniería)
 
-## 📋 Descripción General
+Este documento resume los fixes concretos aplicados durante el debugging, la estabilización y la alineación con la suite de tests de integración.
 
-Este challenge evalúa tu capacidad para **entender, corregir y extender** un sistema backend existente, aplicando buenas prácticas de arquitectura, diseño y calidad de código.
+## 1) El comando de seed de Prisma no estaba configurado
 
-El dominio del problema es el **sorteo de la Champions League en su nuevo formato**, donde 36 equipos participan en una liga única y cada uno juega 8 partidos bajo reglas específicas.
+- **Problema**: `npx prisma db seed` fallaba con "No seed command configured".
+- **Causa raíz**: `prisma.config.ts` no definía `migrations.seed`.
+- **Fixes**:
+  - Se agregó `migrations.seed` en `prisma.config.ts`:
+    - `seed: "tsx prisma/seed.ts"`
+  - Se agregó `prisma/seed.ts` como entrypoint de Prisma, que ejecuta la lógica de seed existente en `src/contexts/teams/infrastructure/seed.ts`.
+- **Resultado**: el seeding de Prisma corre sin errores y carga países, bombos y equipos.
 
----
+## 2) Tests unitarios fallando en `SearchMatchesService`
 
-## 🧩 Contexto del Dominio
+- **Problema**: Vitest fallaba ante paginación inválida y valores de `limit` fuera de rango.
+- **Causas raíz**:
+  - No había validación temprana de valores de `page` inválidos.
+  - Un `limit` desmedido se pasaba tal cual en vez de normalizarse.
+- **Fixes** (`src/contexts/matches/application/search-matches.service.ts`):
+  - Se lanza `Error("Page must be greater than 0")` cuando `page < 1`.
+  - Default `limit = 10`; si `limit > 100`, se cae al default (`10`) para respetar el contrato de los tests.
+- **Resultado**: `npm run test:unit` — los tests de `SearchMatchesService` pasan.
 
-### Reglas del Sorteo
+## 3) Test unitario del draw fallando (desajuste de tipo de `drawId`)
 
-- **36 equipos** participan del torneo
-- Cada equipo juega:
-  - **8 partidos** en total
-  - **4 como local** y **4 como visitante**
-- **No puede haber partidos repetidos** entre los mismos equipos
-- **Restricciones de país:**
-  - Dos equipos del mismo país **NO pueden enfrentarse**
-  - Un equipo **NO puede jugar contra más de 2 equipos del mismo país**
-- Los partidos se distribuyen en **8 jornadas (match days)**
-  - Cada equipo juega **1 partido por jornada**
-  - Cada jornada tiene **18 partidos** (36 equipos / 2)
+- **Problema**: se esperaba `drawId` numérico, llegaba un string.
+- **Causa raíz**: se estaba casteando con `String(drawId)` antes de crear los partidos.
+- **Fixes** (`src/contexts/draw/domain/application/draw-assigner.service.ts`):
+  - Se pasa el `drawId` numérico directo a `tryGenerateMatches`.
+  - Se tipea el parámetro interno como `number`.
+- **Resultado**: la igualdad estricta sobre `drawId` en los tests unitarios pasa.
 
----
+## 4) Comportamiento flakey en la generación del draw
 
-## ⚠️ Estado Actual del Proyecto
+- **Problema**: se violaba ocasionalmente la regla de "máximo 2 rivales del mismo país".
+- **Causa raíz**: `MAX_COUNTRY_OPPONENTS` estaba en `3` cuando los tests exigen `2`.
+- **Fix** (`src/contexts/draw/domain/application/draw-assigner.service.ts`):
+  - Se seteó `MAX_COUNTRY_OPPONENTS` en `2`.
+- **Resultado**: el tope de rivales por país coincide con los tests y se eliminan los fallos aleatorios.
 
-El proyecto que recibes tiene:
+## 5) Error de runtime en `npm test` (`ERR_MODULE_NOT_FOUND` para `mocha`)
 
-✅ **Implementado:**
-- Estructura base con arquitectura de bounded contexts
-- Conexión a base de datos (SQLite con Prisma)
-- Modelos de datos (Team, Country, Match, Draw)
-- Algoritmo de generación de sorteo
-- Algunos endpoints REST
-- Suite de tests (unitarios e integración)
+- **Problema**: Mocha no arrancaba; resolvía mal el módulo `mocha` bajo la raíz del proyecto.
+- **Causa raíz**: la combinación `NODE_OPTIONS='--import tsx'` + invocar `mocha` como binario genérico generaba una resolución incorrecta en este entorno (Git Bash / Windows).
+- **Fix** (`package.json`):
+  - Se corre Mocha vía tsx explícitamente:
+    - `cross-env PORT=8001 tsx node_modules/mocha/bin/mocha.js --reporter mocha-multi-reporters --reporter-options configFile=config.json`
+- **Resultado**: los tests de integración arrancan de forma confiable.
 
-❌ **Problemas conocidos:**
-- El código tiene **bugs intencionales** que debes encontrar y corregir
-- Faltan **validaciones importantes**
-- Algunos **endpoints no están implementados**
-- Los **tests están fallando** (12 tests fallan actualmente)
+## 6) Tests de integración: huecos del contrato de la API (Mocha / `test/index.spec.ts`)
 
----
+Una vez alineado el driver nativo de SQLite con la versión de Node (ver troubleshooting más abajo), los fallos restantes eran puramente de contrato HTTP/API. Se implementaron así.
 
-## 🎯 Tareas Obligatorias
+### 6a) El `POST /draw` duplicado tiene que devolver 409
 
-### 1. Corregir Bugs Existentes
+- **Esperado**: un segundo `POST /draw` → `409`, con body en texto `Draw already exists`.
+- **Fixes**:
+  - `CreateDrawService`: si `searchCurrent()` encuentra un draw, lanza `DrawAlreadyExistsError`.
+  - Handler POST de `draw.router`: mapea ese error a `409` y responde con `res.send("Draw already exists")` (texto plano, porque los tests asertan sobre `response.text`).
 
-Debes identificar y corregir los siguientes problemas:
+### 6b) Validación estricta de query en `GET /matches`
 
-#### 🐛 Bug en DrawService
-- El algoritmo permite más de 2 oponentes del mismo país
+- **Esperado**: `400` para `limit` inválido (por ej. `> 100`, `0`, negativos), `matchDay` fuera de `1..8`, etc.
+- **Causa raíz**: el router coaccionaba los query params con `Number(...)` y salteaba el schema Zod existente, así que los valores inválidos se colaban.
+- **Fix** (`src/contexts/matches/presentation/matches.router.ts`):
+  - Se parsea `req.query` con `SearchMatchesQuerySchema` antes de llamar a `SearchMatchesService`.
 
-#### 🐛 Bug en Tipos de Datos
-- Hay un problema de tipos en el parámetro `drawId`
+### 6c) Faltaba `DELETE /draw`
 
-#### 🐛 Validaciones Faltantes en CreateDrawService
-- No valida si ya existe un sorteo antes de crear uno nuevo
+- **Esperado**: borrar el draw actual → `200` + JSON con mensaje; borrar cuando no hay → `404` + JSON con `message`.
+- **Fix** (`src/contexts/draw/presentation/draw.router.ts`):
+  - Se agregó `DELETE /draw`, que verifica si existe un draw actual, llama a `deleteAll()` en el repositorio cuando corresponde, o devuelve `404` si no.
 
-#### 🐛 Manejo de Errores en draw.router.ts
-- No maneja correctamente el error 409 (Conflict)
+### 6d) Faltaba `GET /health`
 
-#### 🐛 Validaciones Faltantes en SearchMatchesService
-- Faltan validaciones de parámetros de paginación
+- **Esperado**: `200` con `status`, `service` y `timestamp`.
+- **Fix** (`src/shared/infrastructure/routes.ts`):
+  - Se registró `GET /health` antes del resto de los routers.
 
-#### 🐛 Validación de Query Params en matches.router.ts
-- Falta usar el schema de validación en el router
+## 7) Mejoras opcionales del `CHALLENGE.md`
 
-### 2. Implementar Endpoints Faltantes
+Se implementaron como follow-ups una vez que la base estaba en verde.
 
-Debes crear los siguientes endpoints que **NO existen** actualmente:
+### 7a) Nuevos endpoints de lectura y filtros más ricos para `GET /matches`
 
-#### DELETE /draw
-- Eliminar el sorteo actual
-- **Responses:**
-  - `200`: Draw eliminado exitosamente
-  - `404`: No existe un draw para eliminar
-- Debe eliminar en cascada: Draw, DrawTeamPot, Match
+- `GET /teams` — listado de equipos (filtros: `countryId`, `search`).
+- `GET /teams/:id` — detalle del equipo con sus partidos en el draw actual.
+- `GET /matches/:id` — detalle de un partido con `404` si el id no existe.
+- `GET /draw/statistics` — estadísticas agregadas (`totalTeams`, `totalMatches`, `matchesPerMatchDay`, `teamsPerPot`, `teamsPerCountry`, …).
+- `GET /matches` ahora soporta `countryId`, `matchDayFrom`/`matchDayTo`, `sortBy` (`matchDay` | `id` | `homeTeam` | `awayTeam`), `sortOrder` (`asc` | `desc`).
 
-#### GET /health
-- Health check del servicio
-- **Response 200:**
-  ```json
-  {
-    "status": "ok",
-    "service": "champions-league-draw-api",
-    "timestamp": "2024-01-15T10:30:00.000Z"
-  }
-  ```
+Implementación:
 
-### 3. Hacer Pasar Todos los Tests
+- Los contextos/servicios nuevos siguen el layout DDD-lite existente (`domain` / `application` / `infrastructure` / `presentation`) y se cablean vía Inversify.
+- Los schemas de Zod en el borde del router validan el input y devuelven `400` con un mensaje legible por máquinas.
+- Las excepciones de dominio (`MatchNotFoundError`, `TeamNotFoundError`, `DrawAlreadyExistsError`) son mapeadas a status HTTP en los routers — los services quedan puros.
 
-Actualmente hay **12 tests fallando**:
-- 1 test unitario en `draw-assigner.service.test.ts`
-- 3 tests unitarios en `search-matches.service.test.ts`
-- 4 tests E2E para los nuevos endpoints
-- 4 tests E2E de validaciones
+### 7b) OpenAPI / Swagger UI
 
-**Objetivo:** Todos los tests deben pasar (✅ 100% passing)
+- `docs/openapi.yaml` — spec OpenAPI 3.0.3 que cubre cada endpoint, parámetro y schema de respuesta.
+- Servido en vivo en **`GET /docs`** (Swagger UI) y **`GET /openapi.json`** (JSON crudo) vía `swagger-ui-express` + `yaml`.
+- Cableado en `src/shared/infrastructure/routes.ts` de forma perezosa — si el archivo de la spec no está, la app igual levanta, solo que sin la ruta `/docs`.
 
----
+### 7c) Diagramas de arquitectura
 
-## 🔧 Funcionalidades Requeridas
+- `docs/architecture.md` — overview por capas más diagramas Mermaid para:
+  - grafo de componentes/dependencias
+  - diagrama de secuencia de `POST /draw`
+  - diagrama de secuencia de `GET /matches` (Zod → service → repo)
+  - diagrama ER del modelo de datos
+- Explica los límites de DDD, dónde queda aislado Prisma y cómo agregar un contexto nuevo.
 
-### A. Sortear los partidos
-- [x] Ejecutar el sorteo completo
-- [x] Persistir el resultado
-- [ ] **FALTA**: Evitar ejecutar el sorteo más de una vez (respuesta 409)
+### 7d) Colección de Postman
 
-### B. Obtener partidos
-- [x] Calendario general con paginación
-- [x] Filtros por equipo y fecha
-- [ ] **SUGERIDO**: Agregar filtros adicionales (local/visitante, por país, etc.)
+- `postman/Champions-League-Draw-API.postman_collection.json` — 20 requests agrupadas en `Health`, `Draw`, `Matches`, `Teams`.
+- `postman/Champions-League-Draw-API.postman_environment.json` — `baseUrl` y encadenamiento automático de `drawId` / `matchId` / `teamId`.
+- `postman/README.md` — pasos de importación, flujo sugerido y listado completo de endpoints.
+- La colección se puede correr de punta a punta con Newman como smoke test.
 
-### C. Gestión del sorteo
-- [ ] Implementar `DELETE /draw`: Eliminar sorteo actual
+### 7e) Tests de carga / performance
 
-### D. Health Check
-- [ ] Implementar `GET /health`: Verificar estado del servicio
+- `scripts/load-test.ts` — usa `autocannon`, golpea todos los endpoints de lectura e imprime un resumen con `req/s`, latencias p50/p99 y conteo de errores.
+- Se corre con `npm run test:load` (variables de entorno: `BASE_URL`, `DURATION`, `CONNECTIONS`, `PIPELINING`).
+- Pensado para correr contra un servidor levantado localmente (`npm run dev`), no dentro del CI.
 
----
+### 7f) Cobertura de tests + tests de casos borde
 
-## 🧹 Validaciones y Manejo de Errores
+- La cobertura ya está cableada vía Vitest: `npm run test:unit:coverage` (provider `v8`, reporters `text`/`json`/`html`).
+- Se agregaron suites de casos borde en Vitest, sin tocar los tests existentes:
+  - `search-matches.service.edge.test.ts` — redondeo de `totalPages`, límite en 100, filtros vacíos/`undefined`, valores decimales de `page`.
+  - `search-matches.dto.test.ts` — refinements de Zod: rango de `matchDay`, `limit > 100`, `matchDayFrom > matchDayTo`, `sortBy` desconocido.
+  - `search-draw-statistics.service.edge.test.ts` — draw vacío, deduplicación de equipos entre bombos, tie-breaking en `teamsPerCountry`.
+  - `search-team-by-id.service.edge.test.ts` — ids `NaN` / decimales, equipo encontrado sin partidos.
 
-### Implementar:
+## Snapshot de validación
 
-- [ ] Validación de tipos (usando Zod)
-- [ ] Validación de rangos (IDs válidos, matchDays 1-8, paginación, etc.)
-- [ ] Validación de reglas de negocio
-- [ ] Manejo de errores apropiado en los routers
-- [ ] Códigos HTTP apropiados:
-  - `200 OK`, `201 Created`
-  - `400 Bad Request`, `404 Not Found`, `409 Conflict`
-  - `500 Internal Server Error`
+- `npm run test:unit`: **61/61 OK** (20 son las suites nuevas de casos borde).
+- `npm test` (integración con Mocha): **59/59 OK**.
+- `npx tsc --noEmit`: limpio.
 
-### Ejemplos de validaciones faltantes:
+## Troubleshooting: desajuste de módulo nativo `better-sqlite3` / Prisma
 
-- Retornar 409 si ya existe un sorteo antes de crear uno nuevo
-- Validar parámetros de paginación en `SearchMatchesService`
-- Usar el schema de validación en `matches.router.ts`
-- Manejar correctamente el error 409 en `draw.router.ts`
+Si los tests de integración fallan con errores `NODE_MODULE_VERSION` sobre `better_sqlite3.node`, es que el binario nativo compilado no coincide con el proceso de Node que corre los tests.
 
----
-
-## 📈 Arquitectura y Diseño
-
-### Evaluar y mejorar:
-
-- Modularización y separación de responsabilidades
-- Principios SOLID
-- Bajo acoplamiento entre capas
-- Preparación para escalar el sistema
-- Decisiones técnicas justificables
-
----
-
-## 🌟 Mejoras Opcionales (Suma Puntos)
-
-Si quieres destacarte, puedes agregar:
-
-### 📊 Nuevos Endpoints
-- `GET /teams` - Listar todos los equipos
-- `GET /teams/:id` - Detalle de un equipo con sus partidos
-- `GET /matches/:id` - Detalle de un partido específico
-- `GET /draw/statistics` - Estadísticas del sorteo
-
-### 🔍 Filtros Adicionales
-- Filtrar partidos por rango de jornadas (matchDays)
-- Filtrar por país (todos los partidos de equipos de un país)
-- Ordenamiento personalizado (por jornada, equipo, etc.)
-
-### 📝 Documentación
-- Documentar la API con Swagger/OpenAPI
-- Diagrams de arquitectura
-- Colección de Postman/Insomnia
-
-### 🧪 Testing
-- Aumentar cobertura de tests
-- Tests de carga/performance
-- Tests de casos edge
-
----
-
-## ✅ Criterios de Evaluación
-
-| Criterio | Qué evaluamos |
-|----------|---------------|
-| **Correctitud** | Todos los tests pasan, bugs corregidos, reglas del dominio respetadas |
-| **Arquitectura** | Separación de responsabilidades, SOLID, bajo acoplamiento |
-| **Código** | Legibilidad, expresividad, consistencia, buenas prácticas |
-| **Testing** | Casos relevantes, claridad, cobertura |
-| **Mejoras** | Iniciativa, creatividad, valor agregado |
-
----
-
-## 🚀 Cómo Empezar
-
-### 1. Setup del Proyecto
-
-```bash
-# Instalar dependencias
-npm install
-
-# Generar cliente Prisma
-npx prisma generate
-
-# Ejecutar migraciones
-npx prisma migrate dev
-
-# Seed de datos iniciales
-npx prisma db seed
-```
-
-### 2. Ejecutar Tests
-
-```bash
-# Tests unitarios
-npm run test:unit
-
-# Tests de integración
-npm test
-
-# Ver cobertura
-npm run test:coverage
-```
-
-### 3. Ejecutar el Servidor
-
-```bash
-# Desarrollo
-npm run dev
-
-# Producción
-npm run build
-npm start
-```
-
-### 4. Verificar el Estado Actual
-
-```bash
-# Debe mostrar ~12 tests fallando
-npm test
-
-# Debe mostrar 1 test fallando
-npm run test:unit
-```
-
----
-
-## 📦 Entregable
-
-### Qué debes entregar:
-
-1. **Código fuente:**
-   - Fork o clon del repositorio con tus cambios
-   - Commits con mensajes claros y descriptivos
-   - Branch `main` o `solution` con la solución final
-
-2. **Documentación (README.md):**
-   - Cómo levantar el proyecto
-   - Decisiones técnicas tomadas
-   - Supuestos realizados
-   - Bugs encontrados y cómo los solucionaste
-   - Mejoras implementadas (si las hay)
-
-3. **Tests:**
-   - Todos los tests existentes deben pasar
-   - Nuevos tests para código agregado (deseable)
-
-### Formato de entrega:
-- Link a repositorio GitHub/GitLab/Bitbucket
-
----
-
-## 🧠 Qué Buscamos Evaluar
-
-> No buscamos una solución perfecta.
->
-> Buscamos **criterio técnico**, **capacidad de análisis**, **calidad de diseño** y **habilidad para trabajar con código existente**.
-
-### Valoramos especialmente:
-
-- ✅ Capacidad para entender código ajeno
-- ✅ Identificación sistemática de problemas
-- ✅ Soluciones elegantes y mantenibles
-- ✅ Balance entre pragmatismo y calidad
-- ✅ Comunicación clara de decisiones técnicas
-
-### NO buscamos:
-
-- ❌ Over-engineering
-- ❌ Reescribir todo desde cero
-- ❌ Agregar librerías innecesarias
-- ❌ Optimizaciones prematuras
-
----
-
-## 📚 Recursos
-
-### Tecnologías del Proyecto
-
-- **Runtime:** Node.js 18+
-- **Lenguaje:** TypeScript
-- **Framework:** Express.js
-- **ORM:** Prisma
-- **Base de datos:** SQLite
-- **Testing:** Vitest + Chai
-- **DI Container:** InversifyJS
-
-### Documentación Útil
-
-- [Prisma Docs](https://www.prisma.io/docs)
-- [Express.js Guide](https://expressjs.com/en/guide/routing.html)
-- [Vitest API](https://vitest.dev/api/)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-
----
-
-## 🔒 Archivos de Solo Lectura
-
-- `test/*` - No modificar los tests de integración
-
----
-
-**¡Éxito con el challenge! 🚀**
+- **Síntoma**: las queries de Prisma fallan; muchas rutas devuelven `400` en cascada.
+- **Mitigación**: usar la versión de Node declarada en `package.json` → `engines` (>= 22) y después reinstalar o recompilar las dependencias nativas (`npm rebuild better-sqlite3` o limpiar `node_modules` + `npm install`).

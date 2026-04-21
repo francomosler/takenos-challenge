@@ -615,6 +615,315 @@ describe('Champions League Draw API', () => {
     });
   });
 
+  describe('GET /matches extra filters and sorting', () => {
+    beforeEach(async () => {
+      await chai.request(app)
+        .post('/draw')
+        .send();
+    });
+
+    it('should filter matches by a matchDay range', async () => {
+      const response = await chai.request(app)
+        .get('/matches')
+        .query({ matchDayFrom: 2, matchDayTo: 4, limit: 100 });
+
+      response.should.have.status(200);
+      response.body.matches.should.be.an('array');
+      response.body.matches.forEach((match: any) => {
+        match.matchDay.should.be.at.least(2);
+        match.matchDay.should.be.at.most(4);
+      });
+      // 18 matches per match day × 3 days
+      response.body.pagination.total.should.eql(54);
+    });
+
+    it('should return 400 when matchDayFrom is greater than matchDayTo', async () => {
+      const response = await chai.request(app)
+        .get('/matches')
+        .query({ matchDayFrom: 5, matchDayTo: 2 });
+
+      response.should.have.status(400);
+    });
+
+    it('should filter matches by countryId', async () => {
+      const teamWithCountry = await prisma.team.findFirst({
+        where: { countryId: { not: null } },
+      });
+      if (!teamWithCountry || !teamWithCountry.countryId) {
+        throw new Error('Expected at least one team with a country in seed data');
+      }
+
+      const response = await chai.request(app)
+        .get('/matches')
+        .query({ countryId: teamWithCountry.countryId, limit: 100 });
+
+      response.should.have.status(200);
+      response.body.matches.should.be.an('array');
+      response.body.matches.length.should.be.greaterThan(0);
+      response.body.matches.forEach((match: any) => {
+        const home = match.homeTeam.country.id;
+        const away = match.awayTeam.country.id;
+        (home === teamWithCountry.countryId || away === teamWithCountry.countryId)
+          .should.equal(true);
+      });
+    });
+
+    it('should return 400 for invalid countryId', async () => {
+      const response = await chai.request(app)
+        .get('/matches')
+        .query({ countryId: 0 });
+
+      response.should.have.status(400);
+    });
+
+    it('should sort matches by matchDay descending', async () => {
+      const response = await chai.request(app)
+        .get('/matches')
+        .query({ sortBy: 'matchDay', sortOrder: 'desc', limit: 20 });
+
+      response.should.have.status(200);
+      response.body.matches.length.should.be.greaterThan(1);
+      const matchDays = response.body.matches.map((m: any) => m.matchDay);
+      for (let i = 1; i < matchDays.length; i++) {
+        matchDays[i].should.be.at.most(matchDays[i - 1]);
+      }
+    });
+
+    it('should sort matches by homeTeam name ascending', async () => {
+      const response = await chai.request(app)
+        .get('/matches')
+        .query({ sortBy: 'homeTeam', sortOrder: 'asc', limit: 20 });
+
+      response.should.have.status(200);
+      response.body.matches.length.should.be.greaterThan(1);
+      const names = response.body.matches.map((m: any) => m.homeTeam.name);
+      for (let i = 1; i < names.length; i++) {
+        (names[i - 1] <= names[i]).should.equal(true,
+          `expected "${names[i - 1]}" <= "${names[i]}"`
+        );
+      }
+    });
+
+    it('should return 400 for an invalid sortBy value', async () => {
+      const response = await chai.request(app)
+        .get('/matches')
+        .query({ sortBy: 'unknown' });
+
+      response.should.have.status(400);
+    });
+  });
+
+  describe('GET /matches/:id', () => {
+    beforeEach(async () => {
+      await chai.request(app)
+        .post('/draw')
+        .send();
+    });
+
+    it('should return the match details for an existing id', async () => {
+      const anyMatch = await prisma.match.findFirst({ orderBy: { id: 'asc' } });
+      if (!anyMatch) throw new Error('Expected at least one match');
+
+      const response = await chai.request(app)
+        .get(`/matches/${anyMatch.id}`);
+
+      response.should.have.status(200);
+      response.body.should.have.property('id').eql(String(anyMatch.id));
+      response.body.should.have.property('homeTeam');
+      response.body.should.have.property('awayTeam');
+      response.body.should.have.property('matchDay');
+      response.body.homeTeam.should.have.property('country');
+      response.body.awayTeam.should.have.property('country');
+    });
+
+    it('should return 404 for a non-existent id', async () => {
+      const response = await chai.request(app)
+        .get('/matches/999999');
+
+      response.should.have.status(404);
+      response.body.should.have.property('message');
+    });
+
+    it('should return 400 for a non-numeric id', async () => {
+      const response = await chai.request(app)
+        .get('/matches/abc');
+
+      response.should.have.status(400);
+    });
+
+    it('should return 400 for a non-positive id', async () => {
+      const response = await chai.request(app)
+        .get('/matches/0');
+
+      response.should.have.status(400);
+    });
+  });
+
+  describe('GET /teams', () => {
+    it('should return all teams ordered by name', async () => {
+      const response = await chai.request(app)
+        .get('/teams');
+
+      response.should.have.status(200);
+      response.body.should.have.property('teams').that.is.an('array');
+      response.body.teams.should.have.length(36);
+      response.body.teams[0].should.have.property('id');
+      response.body.teams[0].should.have.property('name');
+      response.body.teams[0].should.have.property('country');
+      response.body.teams[0].country.should.have.property('id');
+      response.body.teams[0].country.should.have.property('name');
+
+      const names = response.body.teams.map((t: any) => t.name);
+      const sorted = [...names].sort();
+      names.should.eql(sorted);
+    });
+
+    it('should filter teams by countryId', async () => {
+      const teamWithCountry = await prisma.team.findFirst({
+        where: { countryId: { not: null } },
+      });
+      if (!teamWithCountry || !teamWithCountry.countryId) {
+        throw new Error('Expected at least one team with a country in seed data');
+      }
+
+      const expected = await prisma.team.count({
+        where: { countryId: teamWithCountry.countryId },
+      });
+
+      const response = await chai.request(app)
+        .get('/teams')
+        .query({ countryId: teamWithCountry.countryId });
+
+      response.should.have.status(200);
+      response.body.teams.should.have.length(expected);
+      response.body.teams.forEach((team: any) => {
+        team.country.id.should.eql(teamWithCountry.countryId);
+      });
+    });
+
+    it('should filter teams by partial name search', async () => {
+      const response = await chai.request(app)
+        .get('/teams')
+        .query({ search: 'Madrid' });
+
+      response.should.have.status(200);
+      response.body.teams.should.be.an('array');
+      response.body.teams.length.should.be.greaterThan(0);
+      response.body.teams.forEach((team: any) => {
+        team.name.toLowerCase().should.include('madrid');
+      });
+    });
+
+    it('should return 400 for an invalid countryId', async () => {
+      const response = await chai.request(app)
+        .get('/teams')
+        .query({ countryId: -5 });
+
+      response.should.have.status(400);
+    });
+  });
+
+  describe('GET /teams/:id', () => {
+    it('should return the team and its matches after a draw is created', async () => {
+      await chai.request(app)
+        .post('/draw')
+        .send();
+
+      const team = await prisma.team.findFirst({ orderBy: { id: 'asc' } });
+      if (!team) throw new Error('Expected at least one team');
+
+      const response = await chai.request(app)
+        .get(`/teams/${team.id}`);
+
+      response.should.have.status(200);
+      response.body.should.have.property('team');
+      response.body.should.have.property('matches').that.is.an('array');
+      response.body.team.id.should.eql(team.id);
+      response.body.matches.should.have.length(8);
+
+      response.body.matches.forEach((match: any) => {
+        const isHome = match.homeTeam.id === team.id;
+        const isAway = match.awayTeam.id === team.id;
+        (isHome || isAway).should.equal(true);
+      });
+
+      const matchDays = response.body.matches.map((m: any) => m.matchDay);
+      const sorted = [...matchDays].sort((a, b) => a - b);
+      matchDays.should.eql(sorted);
+    });
+
+    it('should return the team with an empty matches array when no draw exists', async () => {
+      const team = await prisma.team.findFirst({ orderBy: { id: 'asc' } });
+      if (!team) throw new Error('Expected at least one team');
+
+      const response = await chai.request(app)
+        .get(`/teams/${team.id}`);
+
+      response.should.have.status(200);
+      response.body.team.id.should.eql(team.id);
+      response.body.matches.should.have.length(0);
+    });
+
+    it('should return 404 when the team does not exist', async () => {
+      const response = await chai.request(app)
+        .get('/teams/999999');
+
+      response.should.have.status(404);
+      response.body.should.have.property('message');
+    });
+
+    it('should return 400 for a non-numeric id', async () => {
+      const response = await chai.request(app)
+        .get('/teams/abc');
+
+      response.should.have.status(400);
+    });
+  });
+
+  describe('GET /draw/statistics', () => {
+    it('should return 404 when no draw exists', async () => {
+      const response = await chai.request(app)
+        .get('/draw/statistics');
+
+      response.should.have.status(404);
+      response.body.should.have.property('message');
+    });
+
+    it('should return aggregated statistics for the current draw', async () => {
+      await chai.request(app)
+        .post('/draw')
+        .send();
+
+      const response = await chai.request(app)
+        .get('/draw/statistics');
+
+      response.should.have.status(200);
+      response.body.should.have.property('drawId').that.is.a('number');
+      response.body.should.have.property('createdAt');
+      response.body.should.have.property('totalTeams').eql(36);
+      response.body.should.have.property('totalMatches').eql(144);
+      response.body.should.have.property('totalCountries').that.is.a('number');
+
+      response.body.matchesPerMatchDay.should.be.an('array').with.length(8);
+      response.body.matchesPerMatchDay.forEach((entry: any) => {
+        entry.should.have.property('matchDay');
+        entry.should.have.property('count').eql(18);
+      });
+
+      response.body.teamsPerPot.should.be.an('array').with.length(4);
+      const totalTeamsInPots = response.body.teamsPerPot
+        .map((p: any) => p.count)
+        .reduce((a: number, b: number) => a + b, 0);
+      totalTeamsInPots.should.eql(36);
+
+      response.body.teamsPerCountry.should.be.an('array');
+      const totalTeamsByCountry = response.body.teamsPerCountry
+        .map((c: any) => c.count)
+        .reduce((a: number, b: number) => a + b, 0);
+      totalTeamsByCountry.should.eql(36);
+    });
+  });
+
   describe('GET /health', () => {
     it('should return 200 with health status', async () => {
       const response = await chai.request(app)

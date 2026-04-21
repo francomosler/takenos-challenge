@@ -3,14 +3,22 @@ import { TYPES } from "../../../shared/container/types.js";
 import {
   MatchRepository,
   MatchFilters,
+  MatchSort,
+  MatchSortField,
   PaginationParams,
+  SortOrder,
 } from "../domain/match.repository.js";
 
 export interface SearchMatchesParams {
   teamId?: number;
+  countryId?: number;
   matchDay?: number;
+  matchDayFrom?: number;
+  matchDayTo?: number;
   page?: number;
   limit?: number;
+  sortBy?: MatchSortField;
+  sortOrder?: SortOrder;
 }
 
 export interface SearchMatchesResult {
@@ -68,8 +76,17 @@ export class SearchMatchesService {
     if (params.teamId) {
       filters.teamId = params.teamId;
     }
+    if (params.countryId) {
+      filters.countryId = params.countryId;
+    }
     if (params.matchDay) {
       filters.matchDay = params.matchDay;
+    }
+    if (params.matchDayFrom) {
+      filters.matchDayFrom = params.matchDayFrom;
+    }
+    if (params.matchDayTo) {
+      filters.matchDayTo = params.matchDayTo;
     }
 
     const pagination: PaginationParams = {
@@ -77,10 +94,14 @@ export class SearchMatchesService {
       limit,
     };
 
-    const { matches, total } = await this.matchRepository.findAll(
-      filters,
-      pagination
-    );
+    const hasSort = params.sortBy !== undefined || params.sortOrder !== undefined;
+    const sort: MatchSort | undefined = hasSort
+      ? { sortBy: params.sortBy, sortOrder: params.sortOrder }
+      : undefined;
+
+    const { matches, total } = sort
+      ? await this.matchRepository.findAll(filters, pagination, sort)
+      : await this.matchRepository.findAll(filters, pagination);
 
     const totalPages = Math.ceil(total / limit);
 

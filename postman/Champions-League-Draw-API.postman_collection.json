@@ -1,0 +1,557 @@
+{
+  "info": {
+    "_postman_id": "f2f7c3ca-7d34-4a1f-9a4a-01c3b3f6b111",
+    "name": "Champions League Draw API",
+    "description": "Colección completa para la API del sorteo de la Champions League.\n\n**Base URL por defecto:** `http://localhost:8000` (configurable vía la variable `baseUrl`).\n\n### Flujo sugerido\n1. `GET /health` — verificar que la API está corriendo.\n2. `POST /draw` — generar el sorteo (requiere seed previo: `npx prisma db seed`).\n3. Explorar `GET /draw`, `GET /draw/statistics`, `GET /matches`, `GET /teams`.\n4. Usar filtros y ordenamiento en `GET /matches`.\n5. `DELETE /draw` — limpiar el sorteo para iterar.\n\nLas peticiones guardan automáticamente `matchId` y `teamId` en variables de colección después de ejecutar `GET /matches` y `GET /teams`, de forma que `GET /matches/:id` y `GET /teams/:id` funcionan sin configuración manual.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "description": "Endpoint de verificación del estado del servicio.",
+      "item": [
+        {
+          "name": "GET /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('body has status ok', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('ok');",
+                  "  pm.expect(body).to.have.property('service');",
+                  "  pm.expect(body).to.have.property('timestamp');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Devuelve 200 con `{ status, service, timestamp }` si la API está viva."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Draw",
+      "description": "Gestión del sorteo actual: crear, consultar, estadísticas y eliminar.",
+      "item": [
+        {
+          "name": "POST /draw",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201 or 409', () => pm.expect([201, 409]).to.include(pm.response.code));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('message');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/draw",
+              "host": ["{{baseUrl}}"],
+              "path": ["draw"]
+            },
+            "description": "Genera el sorteo y sus 144 partidos (36 equipos × 8 jornadas / 2).\n\n- **201 Created**: sorteo creado con éxito.\n- **409 Conflict**: ya existe un sorteo. Hay que `DELETE /draw` primero."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /draw",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 404', () => pm.expect([200, 404]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('id');",
+                  "  pm.expect(body).to.have.property('pots').that.is.an('array');",
+                  "  pm.expect(body).to.have.property('matches').that.is.an('array');",
+                  "  pm.collectionVariables.set('drawId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/draw",
+              "host": ["{{baseUrl}}"],
+              "path": ["draw"]
+            },
+            "description": "Devuelve el sorteo actual con los 4 bombos y los 144 partidos.\n\n- **200 OK**: sorteo existente.\n- **404 Not Found**: aún no se generó ninguno."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /draw/statistics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 404', () => pm.expect([200, 404]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.include.keys([",
+                  "    'drawId', 'createdAt', 'totalTeams', 'totalCountries', 'totalMatches',",
+                  "    'matchesPerMatchDay', 'teamsPerPot', 'teamsPerCountry'",
+                  "  ]);",
+                  "  pm.expect(body.totalTeams).to.eql(36);",
+                  "  pm.expect(body.totalMatches).to.eql(144);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/draw/statistics",
+              "host": ["{{baseUrl}}"],
+              "path": ["draw", "statistics"]
+            },
+            "description": "Estadísticas agregadas del sorteo actual:\n\n- `totalTeams`, `totalCountries`, `totalMatches`\n- `matchesPerMatchDay[]` — 18 partidos por jornada\n- `teamsPerPot[]` — 9 equipos por bombo\n- `teamsPerCountry[]` — equipos por país, ordenados desc\n\n**404** si todavía no hay sorteo."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /draw",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 404', () => pm.expect([200, 404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/draw",
+              "host": ["{{baseUrl}}"],
+              "path": ["draw"]
+            },
+            "description": "Elimina el sorteo actual junto con sus partidos y asignaciones a bombos.\n\n- **200 OK**: sorteo eliminado.\n- **404 Not Found**: no había sorteo."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Matches",
+      "description": "Búsqueda de partidos con paginación, filtros y ordenamiento.",
+      "item": [
+        {
+          "name": "GET /matches (default pagination)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status code is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('matches').that.is.an('array');",
+                  "pm.expect(body).to.have.property('pagination');",
+                  "pm.expect(body.pagination).to.include.keys(['page', 'limit', 'total', 'totalPages']);",
+                  "if (body.matches.length > 0) {",
+                  "  pm.collectionVariables.set('matchId', body.matches[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"]
+            },
+            "description": "Lista de partidos usando paginación por defecto (`page=1`, `limit=10`)."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Paginación personalizada. `limit` máximo permitido: 100."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches?teamId (filter by team)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches?teamId=1&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"],
+              "query": [
+                { "key": "teamId", "value": "1" },
+                { "key": "limit", "value": "100" }
+              ]
+            },
+            "description": "Partidos en los que juega el equipo indicado (home o away). Son exactamente 8 por equipo."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches?matchDay (filter by match day)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches?matchDay=1&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"],
+              "query": [
+                { "key": "matchDay", "value": "1" },
+                { "key": "limit", "value": "100" }
+              ]
+            },
+            "description": "Partidos de una jornada específica (1..8). Cada jornada tiene 18 partidos."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches?matchDayFrom&matchDayTo (range)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches?matchDayFrom=2&matchDayTo=5&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"],
+              "query": [
+                { "key": "matchDayFrom", "value": "2" },
+                { "key": "matchDayTo", "value": "5" },
+                { "key": "limit", "value": "100" }
+              ]
+            },
+            "description": "Rango de jornadas inclusivo. Si se pasa también `matchDay`, éste tiene prioridad.\n\n`400` si `matchDayFrom > matchDayTo`."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches?countryId (filter by country)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches?countryId=1&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"],
+              "query": [
+                { "key": "countryId", "value": "1" },
+                { "key": "limit", "value": "100" }
+              ]
+            },
+            "description": "Partidos en los que alguno de los equipos pertenece al país indicado."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches?sortBy (sorting)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches?sortBy=matchDay&sortOrder=desc&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"],
+              "query": [
+                { "key": "sortBy", "value": "matchDay", "description": "matchDay | id | homeTeam | awayTeam" },
+                { "key": "sortOrder", "value": "desc", "description": "asc | desc" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Ordenamiento personalizado. Campos válidos: `matchDay`, `id`, `homeTeam`, `awayTeam`. Orden: `asc` (default) o `desc`."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches (combined filters)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches?teamId=1&matchDayFrom=1&matchDayTo=4&sortBy=matchDay&sortOrder=asc&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"],
+              "query": [
+                { "key": "teamId", "value": "1" },
+                { "key": "matchDayFrom", "value": "1" },
+                { "key": "matchDayTo", "value": "4" },
+                { "key": "sortBy", "value": "matchDay" },
+                { "key": "sortOrder", "value": "asc" },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Ejemplo combinando múltiples filtros y ordenamiento."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 404', () => pm.expect([200, 404]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('id');",
+                  "  pm.expect(body).to.have.property('homeTeam');",
+                  "  pm.expect(body).to.have.property('awayTeam');",
+                  "  pm.expect(body).to.have.property('matchDay');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches/{{matchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches", "{{matchId}}"]
+            },
+            "description": "Detalle de un partido específico. `matchId` se autosetea tras correr `GET /matches`.\n\n- **200 OK**: partido encontrado.\n- **404 Not Found**: id no existe.\n- **400 Bad Request**: id no es un entero positivo."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches (invalid: matchDay out of range)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches?matchDay=9",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"],
+              "query": [
+                { "key": "matchDay", "value": "9" }
+              ]
+            },
+            "description": "Ejemplo de validación: `matchDay` debe estar entre 1 y 8. Devuelve **400**."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /matches (invalid: limit > 100)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matches?limit=500",
+              "host": ["{{baseUrl}}"],
+              "path": ["matches"],
+              "query": [
+                { "key": "limit", "value": "500" }
+              ]
+            },
+            "description": "Ejemplo de validación: `limit` máximo 100. Devuelve **400**."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Teams",
+      "description": "Listado y detalle de equipos.",
+      "item": [
+        {
+          "name": "GET /teams",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status code is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('teams').that.is.an('array');",
+                  "if (body.teams.length > 0) {",
+                  "  pm.collectionVariables.set('teamId', body.teams[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teams",
+              "host": ["{{baseUrl}}"],
+              "path": ["teams"]
+            },
+            "description": "Lista todos los equipos ordenados por nombre."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /teams?countryId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teams?countryId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["teams"],
+              "query": [
+                { "key": "countryId", "value": "1" }
+              ]
+            },
+            "description": "Filtra los equipos por país."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /teams?search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teams?search=Madrid",
+              "host": ["{{baseUrl}}"],
+              "path": ["teams"],
+              "query": [
+                { "key": "search", "value": "Madrid" }
+              ]
+            },
+            "description": "Busca equipos cuyo nombre contenga el texto (match parcial)."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /teams/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 404', () => pm.expect([200, 404]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('team');",
+                  "  pm.expect(body).to.have.property('matches').that.is.an('array');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teams/{{teamId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teams", "{{teamId}}"]
+            },
+            "description": "Devuelve `{ team, matches }`: el equipo y sus partidos en el sorteo actual (ordenados por jornada).\n\n- Si todavía no hay sorteo, `matches` viene vacío.\n- **404** si el equipo no existe.\n- **400** si `id` no es un entero positivo.\n\n`teamId` se autosetea tras correr `GET /teams`."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "URL base de la API. Cambiar aquí o en el environment."
+    },
+    {
+      "key": "matchId",
+      "value": "1",
+      "type": "string",
+      "description": "Se actualiza automáticamente tras ejecutar `GET /matches`."
+    },
+    {
+      "key": "teamId",
+      "value": "1",
+      "type": "string",
+      "description": "Se actualiza automáticamente tras ejecutar `GET /teams`."
+    },
+    {
+      "key": "drawId",
+      "value": "1",
+      "type": "string",
+      "description": "Se actualiza automáticamente tras ejecutar `GET /draw`."
+    }
+  ]
+}

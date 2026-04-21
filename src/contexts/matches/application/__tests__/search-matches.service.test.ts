@@ -168,6 +168,62 @@ describe('SearchMatchesService', () => {
       expect(result.pagination.totalPages).toBe(7);
     });
 
+    it('should filter by countryId when provided', async () => {
+      const countryId = 7;
+      vi.mocked(mockRepository.findAll).mockResolvedValue({
+        matches: [],
+        total: 0,
+      });
+
+      await service.run({ countryId });
+
+      expect(mockRepository.findAll).toHaveBeenCalledWith(
+        { countryId },
+        { page: 1, limit: 10 }
+      );
+    });
+
+    it('should filter by matchDay range when provided', async () => {
+      vi.mocked(mockRepository.findAll).mockResolvedValue({
+        matches: [],
+        total: 0,
+      });
+
+      await service.run({ matchDayFrom: 2, matchDayTo: 5 });
+
+      expect(mockRepository.findAll).toHaveBeenCalledWith(
+        { matchDayFrom: 2, matchDayTo: 5 },
+        { page: 1, limit: 10 }
+      );
+    });
+
+    it('should forward sort options to the repository when provided', async () => {
+      vi.mocked(mockRepository.findAll).mockResolvedValue({
+        matches: [],
+        total: 0,
+      });
+
+      await service.run({ sortBy: 'homeTeam', sortOrder: 'desc' });
+
+      expect(mockRepository.findAll).toHaveBeenCalledWith(
+        {},
+        { page: 1, limit: 10 },
+        { sortBy: 'homeTeam', sortOrder: 'desc' }
+      );
+    });
+
+    it('should not forward sort when no sort options are provided', async () => {
+      vi.mocked(mockRepository.findAll).mockResolvedValue({
+        matches: [],
+        total: 0,
+      });
+
+      await service.run({});
+
+      const call = vi.mocked(mockRepository.findAll).mock.calls[0];
+      expect(call).toHaveLength(2);
+    });
+
     it('should return correct match primitives', async () => {
       // Arrange
       const mockMatches = [
