@@ -1,151 +1,151 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="Mocha Tests" time="16.233" tests="59" failures="0">
-  <testsuite name="Root Suite" timestamp="2026-04-21T22:38:42" tests="0" time="0.000" failures="0">
+<testsuites name="Mocha Tests" time="17.304" tests="59" failures="0">
+  <testsuite name="Root Suite" timestamp="2026-04-21T23:48:45" tests="0" time="0.000" failures="0">
   </testsuite>
-  <testsuite name="Champions League Draw API" timestamp="2026-04-21T22:38:42" tests="0" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.000" failures="0">
+  <testsuite name="Champions League Draw API" timestamp="2026-04-21T23:48:45" tests="0" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.000" failures="0">
   </testsuite>
-  <testsuite name="POST /draw" timestamp="2026-04-21T22:38:42" tests="10" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="6.266" failures="0">
-    <testcase name="Champions League Draw API POST /draw should create the draw successfully on first call" time="0.392" classname="should create the draw successfully on first call">
+  <testsuite name="POST /draw" timestamp="2026-04-21T23:48:45" tests="10" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="6.834" failures="0">
+    <testcase name="Champions League Draw API POST /draw should create the draw successfully on first call" time="0.418" classname="should create the draw successfully on first call">
     </testcase>
-    <testcase name="Champions League Draw API POST /draw should return 409 if draw already exists" time="0.226" classname="should return 409 if draw already exists">
+    <testcase name="Champions League Draw API POST /draw should return 409 if draw already exists" time="0.290" classname="should return 409 if draw already exists">
     </testcase>
-    <testcase name="Champions League Draw API POST /draw should generate exactly 144 matches" time="0.265" classname="should generate exactly 144 matches">
+    <testcase name="Champions League Draw API POST /draw should generate exactly 144 matches" time="0.269" classname="should generate exactly 144 matches">
     </testcase>
-    <testcase name="Champions League Draw API POST /draw should ensure each team plays exactly 8 matches" time="0.797" classname="should ensure each team plays exactly 8 matches">
+    <testcase name="Champions League Draw API POST /draw should ensure each team plays exactly 8 matches" time="0.842" classname="should ensure each team plays exactly 8 matches">
     </testcase>
-    <testcase name="Champions League Draw API POST /draw should ensure each team has 4 home and 4 away matches" time="0.869" classname="should ensure each team has 4 home and 4 away matches">
+    <testcase name="Champions League Draw API POST /draw should ensure each team has 4 home and 4 away matches" time="1.012" classname="should ensure each team has 4 home and 4 away matches">
     </testcase>
-    <testcase name="Champions League Draw API POST /draw should ensure no team plays the same opponent twice" time="0.750" classname="should ensure no team plays the same opponent twice">
+    <testcase name="Champions League Draw API POST /draw should ensure no team plays the same opponent twice" time="0.939" classname="should ensure no team plays the same opponent twice">
     </testcase>
-    <testcase name="Champions League Draw API POST /draw should distribute matches across 8 match days" time="0.305" classname="should distribute matches across 8 match days">
+    <testcase name="Champions League Draw API POST /draw should distribute matches across 8 match days" time="0.347" classname="should distribute matches across 8 match days">
     </testcase>
-    <testcase name="Champions League Draw API POST /draw should ensure each team plays once per match day" time="0.729" classname="should ensure each team plays once per match day">
+    <testcase name="Champions League Draw API POST /draw should ensure each team plays once per match day" time="0.760" classname="should ensure each team plays once per match day">
     </testcase>
-    <testcase name="Champions League Draw API POST /draw should respect confederation constraints (no same country)" time="0.216" classname="should respect confederation constraints (no same country)">
+    <testcase name="Champions League Draw API POST /draw should respect confederation constraints (no same country)" time="0.264" classname="should respect confederation constraints (no same country)">
     </testcase>
-    <testcase name="Champions League Draw API POST /draw should limit each team to max 2 opponents from same confederation" time="0.743" classname="should limit each team to max 2 opponents from same confederation">
+    <testcase name="Champions League Draw API POST /draw should limit each team to max 2 opponents from same confederation" time="0.733" classname="should limit each team to max 2 opponents from same confederation">
     </testcase>
   </testsuite>
-  <testsuite name="GET /matches" timestamp="2026-04-21T22:38:49" tests="12" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="3.599" failures="0">
-    <testcase name="Champions League Draw API GET /matches should return matches with pagination" time="0.013" classname="should return matches with pagination">
+  <testsuite name="GET /matches" timestamp="2026-04-21T23:48:52" tests="12" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="3.441" failures="0">
+    <testcase name="Champions League Draw API GET /matches should return matches with pagination" time="0.018" classname="should return matches with pagination">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should return matches with id field" time="0.013" classname="should return matches with id field">
+    <testcase name="Champions League Draw API GET /matches should return matches with id field" time="0.015" classname="should return matches with id field">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should filter matches by teamId" time="0.013" classname="should filter matches by teamId">
+    <testcase name="Champions League Draw API GET /matches should filter matches by teamId" time="0.015" classname="should filter matches by teamId">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should filter matches by matchDay" time="0.015" classname="should filter matches by matchDay">
+    <testcase name="Champions League Draw API GET /matches should filter matches by matchDay" time="0.016" classname="should filter matches by matchDay">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should filter matches by both teamId and matchDay" time="0.022" classname="should filter matches by both teamId and matchDay">
+    <testcase name="Champions League Draw API GET /matches should filter matches by both teamId and matchDay" time="0.014" classname="should filter matches by both teamId and matchDay">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should return empty array when no matches match filter" time="0.012" classname="should return empty array when no matches match filter">
+    <testcase name="Champions League Draw API GET /matches should return empty array when no matches match filter" time="0.014" classname="should return empty array when no matches match filter">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should handle pagination correctly" time="0.029" classname="should handle pagination correctly">
+    <testcase name="Champions League Draw API GET /matches should handle pagination correctly" time="0.026" classname="should handle pagination correctly">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should use default pagination when not provided" time="0.015" classname="should use default pagination when not provided">
+    <testcase name="Champions League Draw API GET /matches should use default pagination when not provided" time="0.014" classname="should use default pagination when not provided">
     </testcase>
     <testcase name="Champions League Draw API GET /matches should return 400 for invalid page number" time="0.009" classname="should return 400 for invalid page number">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should return 400 for negative page number" time="0.007" classname="should return 400 for negative page number">
+    <testcase name="Champions League Draw API GET /matches should return 400 for negative page number" time="0.006" classname="should return 400 for negative page number">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should return 400 for limit greater than 100" time="0.007" classname="should return 400 for limit greater than 100">
+    <testcase name="Champions League Draw API GET /matches should return 400 for limit greater than 100" time="0.008" classname="should return 400 for limit greater than 100">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches should return 400 for negative limit" time="0.008" classname="should return 400 for negative limit">
-    </testcase>
-  </testsuite>
-  <testsuite name="GET /matches without draw" timestamp="2026-04-21T22:38:52" tests="1" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.064" failures="0">
-    <testcase name="Champions League Draw API GET /matches without draw should return empty array when no draw exists" time="0.014" classname="should return empty array when no draw exists">
+    <testcase name="Champions League Draw API GET /matches should return 400 for negative limit" time="0.007" classname="should return 400 for negative limit">
     </testcase>
   </testsuite>
-  <testsuite name="Draw Algorithm Robustness" timestamp="2026-04-21T22:38:52" tests="3" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="1.291" failures="0">
-    <testcase name="Champions League Draw API Draw Algorithm Robustness should consistently generate valid draws on multiple attempts" time="0.685" classname="should consistently generate valid draws on multiple attempts">
-    </testcase>
-    <testcase name="Champions League Draw API Draw Algorithm Robustness should not have any duplicate matches" time="0.220" classname="should not have any duplicate matches">
-    </testcase>
-    <testcase name="Champions League Draw API Draw Algorithm Robustness should have valid match day distribution (18 matches per day)" time="0.274" classname="should have valid match day distribution (18 matches per day)">
+  <testsuite name="GET /matches without draw" timestamp="2026-04-21T23:48:55" tests="1" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.076" failures="0">
+    <testcase name="Champions League Draw API GET /matches without draw should return empty array when no draw exists" time="0.015" classname="should return empty array when no draw exists">
     </testcase>
   </testsuite>
-  <testsuite name="Validation Edge Cases" timestamp="2026-04-21T22:38:54" tests="6" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.644" failures="0">
-    <testcase name="Champions League Draw API Validation Edge Cases should return 400 for invalid matchDay (0)" time="0.007" classname="should return 400 for invalid matchDay (0)">
+  <testsuite name="Draw Algorithm Robustness" timestamp="2026-04-21T23:48:55" tests="3" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="1.640" failures="0">
+    <testcase name="Champions League Draw API Draw Algorithm Robustness should consistently generate valid draws on multiple attempts" time="0.990" classname="should consistently generate valid draws on multiple attempts">
     </testcase>
-    <testcase name="Champions League Draw API Validation Edge Cases should return 400 for invalid matchDay (9)" time="0.007" classname="should return 400 for invalid matchDay (9)">
+    <testcase name="Champions League Draw API Draw Algorithm Robustness should not have any duplicate matches" time="0.223" classname="should not have any duplicate matches">
     </testcase>
-    <testcase name="Champions League Draw API Validation Edge Cases should return 400 for invalid matchDay (-1)" time="0.007" classname="should return 400 for invalid matchDay (-1)">
-    </testcase>
-    <testcase name="Champions League Draw API Validation Edge Cases should handle page beyond total pages gracefully" time="0.295" classname="should handle page beyond total pages gracefully">
-    </testcase>
-    <testcase name="Champions League Draw API Validation Edge Cases should return 400 for limit of 0" time="0.006" classname="should return 400 for limit of 0">
-    </testcase>
-    <testcase name="Champions League Draw API Validation Edge Cases should return appropriate response for non-existent teamId" time="0.171" classname="should return appropriate response for non-existent teamId">
+    <testcase name="Champions League Draw API Draw Algorithm Robustness should have valid match day distribution (18 matches per day)" time="0.316" classname="should have valid match day distribution (18 matches per day)">
     </testcase>
   </testsuite>
-  <testsuite name="GET /draw" timestamp="2026-04-21T22:38:54" tests="2" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.267" failures="0">
-    <testcase name="Champions League Draw API GET /draw should return 404 when no draw exists" time="0.011" classname="should return 404 when no draw exists">
+  <testsuite name="Validation Edge Cases" timestamp="2026-04-21T23:48:57" tests="6" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.637" failures="0">
+    <testcase name="Champions League Draw API Validation Edge Cases should return 400 for invalid matchDay (0)" time="0.010" classname="should return 400 for invalid matchDay (0)">
     </testcase>
-    <testcase name="Champions League Draw API GET /draw should return draw details after creation" time="0.193" classname="should return draw details after creation">
+    <testcase name="Champions League Draw API Validation Edge Cases should return 400 for invalid matchDay (9)" time="0.011" classname="should return 400 for invalid matchDay (9)">
+    </testcase>
+    <testcase name="Champions League Draw API Validation Edge Cases should return 400 for invalid matchDay (-1)" time="0.008" classname="should return 400 for invalid matchDay (-1)">
+    </testcase>
+    <testcase name="Champions League Draw API Validation Edge Cases should handle page beyond total pages gracefully" time="0.225" classname="should handle page beyond total pages gracefully">
+    </testcase>
+    <testcase name="Champions League Draw API Validation Edge Cases should return 400 for limit of 0" time="0.010" classname="should return 400 for limit of 0">
+    </testcase>
+    <testcase name="Champions League Draw API Validation Edge Cases should return appropriate response for non-existent teamId" time="0.227" classname="should return appropriate response for non-existent teamId">
     </testcase>
   </testsuite>
-  <testsuite name="DELETE /draw" timestamp="2026-04-21T22:38:55" tests="2" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.298" failures="0">
-    <testcase name="Champions League Draw API DELETE /draw should delete the current draw successfully" time="0.224" classname="should delete the current draw successfully">
+  <testsuite name="GET /draw" timestamp="2026-04-21T23:48:57" tests="2" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.286" failures="0">
+    <testcase name="Champions League Draw API GET /draw should return 404 when no draw exists" time="0.015" classname="should return 404 when no draw exists">
     </testcase>
-    <testcase name="Champions League Draw API DELETE /draw should return 404 when trying to delete non-existent draw" time="0.011" classname="should return 404 when trying to delete non-existent draw">
+    <testcase name="Champions League Draw API GET /draw should return draw details after creation" time="0.221" classname="should return draw details after creation">
     </testcase>
   </testsuite>
-  <testsuite name="GET /matches extra filters and sorting" timestamp="2026-04-21T22:38:55" tests="7" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="1.883" failures="0">
+  <testsuite name="DELETE /draw" timestamp="2026-04-21T23:48:58" tests="2" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.366" failures="0">
+    <testcase name="Champions League Draw API DELETE /draw should delete the current draw successfully" time="0.237" classname="should delete the current draw successfully">
+    </testcase>
+    <testcase name="Champions League Draw API DELETE /draw should return 404 when trying to delete non-existent draw" time="0.015" classname="should return 404 when trying to delete non-existent draw">
+    </testcase>
+  </testsuite>
+  <testsuite name="GET /matches extra filters and sorting" timestamp="2026-04-21T23:48:58" tests="7" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="1.794" failures="0">
     <testcase name="Champions League Draw API GET /matches extra filters and sorting should filter matches by a matchDay range" time="0.026" classname="should filter matches by a matchDay range">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches extra filters and sorting should return 400 when matchDayFrom is greater than matchDayTo" time="0.007" classname="should return 400 when matchDayFrom is greater than matchDayTo">
+    <testcase name="Champions League Draw API GET /matches extra filters and sorting should return 400 when matchDayFrom is greater than matchDayTo" time="0.008" classname="should return 400 when matchDayFrom is greater than matchDayTo">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches extra filters and sorting should filter matches by countryId" time="0.018" classname="should filter matches by countryId">
+    <testcase name="Champions League Draw API GET /matches extra filters and sorting should filter matches by countryId" time="0.019" classname="should filter matches by countryId">
     </testcase>
     <testcase name="Champions League Draw API GET /matches extra filters and sorting should return 400 for invalid countryId" time="0.007" classname="should return 400 for invalid countryId">
     </testcase>
     <testcase name="Champions League Draw API GET /matches extra filters and sorting should sort matches by matchDay descending" time="0.017" classname="should sort matches by matchDay descending">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches extra filters and sorting should sort matches by homeTeam name ascending" time="0.019" classname="should sort matches by homeTeam name ascending">
+    <testcase name="Champions League Draw API GET /matches extra filters and sorting should sort matches by homeTeam name ascending" time="0.018" classname="should sort matches by homeTeam name ascending">
     </testcase>
-    <testcase name="Champions League Draw API GET /matches extra filters and sorting should return 400 for an invalid sortBy value" time="0.007" classname="should return 400 for an invalid sortBy value">
-    </testcase>
-  </testsuite>
-  <testsuite name="GET /matches/:id" timestamp="2026-04-21T22:38:57" tests="4" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="1.075" failures="0">
-    <testcase name="Champions League Draw API GET /matches/:id should return the match details for an existing id" time="0.016" classname="should return the match details for an existing id">
-    </testcase>
-    <testcase name="Champions League Draw API GET /matches/:id should return 404 for a non-existent id" time="0.010" classname="should return 404 for a non-existent id">
-    </testcase>
-    <testcase name="Champions League Draw API GET /matches/:id should return 400 for a non-numeric id" time="0.007" classname="should return 400 for a non-numeric id">
-    </testcase>
-    <testcase name="Champions League Draw API GET /matches/:id should return 400 for a non-positive id" time="0.007" classname="should return 400 for a non-positive id">
+    <testcase name="Champions League Draw API GET /matches extra filters and sorting should return 400 for an invalid sortBy value" time="0.008" classname="should return 400 for an invalid sortBy value">
     </testcase>
   </testsuite>
-  <testsuite name="GET /teams" timestamp="2026-04-21T22:38:58" tests="4" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.112" failures="0">
+  <testsuite name="GET /matches/:id" timestamp="2026-04-21T23:49:00" tests="4" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="1.417" failures="0">
+    <testcase name="Champions League Draw API GET /matches/:id should return the match details for an existing id" time="0.018" classname="should return the match details for an existing id">
+    </testcase>
+    <testcase name="Champions League Draw API GET /matches/:id should return 404 for a non-existent id" time="0.012" classname="should return 404 for a non-existent id">
+    </testcase>
+    <testcase name="Champions League Draw API GET /matches/:id should return 400 for a non-numeric id" time="0.008" classname="should return 400 for a non-numeric id">
+    </testcase>
+    <testcase name="Champions League Draw API GET /matches/:id should return 400 for a non-positive id" time="0.012" classname="should return 400 for a non-positive id">
+    </testcase>
+  </testsuite>
+  <testsuite name="GET /teams" timestamp="2026-04-21T23:49:01" tests="4" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.119" failures="0">
     <testcase name="Champions League Draw API GET /teams should return all teams ordered by name" time="0.016" classname="should return all teams ordered by name">
     </testcase>
     <testcase name="Champions League Draw API GET /teams should filter teams by countryId" time="0.012" classname="should filter teams by countryId">
     </testcase>
-    <testcase name="Champions League Draw API GET /teams should filter teams by partial name search" time="0.010" classname="should filter teams by partial name search">
+    <testcase name="Champions League Draw API GET /teams should filter teams by partial name search" time="0.011" classname="should filter teams by partial name search">
     </testcase>
     <testcase name="Champions League Draw API GET /teams should return 400 for an invalid countryId" time="0.006" classname="should return 400 for an invalid countryId">
     </testcase>
   </testsuite>
-  <testsuite name="GET /teams/:id" timestamp="2026-04-21T22:38:58" tests="4" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.324" failures="0">
-    <testcase name="Champions League Draw API GET /teams/:id should return the team and its matches after a draw is created" time="0.225" classname="should return the team and its matches after a draw is created">
+  <testsuite name="GET /teams/:id" timestamp="2026-04-21T23:49:01" tests="4" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.312" failures="0">
+    <testcase name="Champions League Draw API GET /teams/:id should return the team and its matches after a draw is created" time="0.207" classname="should return the team and its matches after a draw is created">
     </testcase>
     <testcase name="Champions League Draw API GET /teams/:id should return the team with an empty matches array when no draw exists" time="0.018" classname="should return the team with an empty matches array when no draw exists">
     </testcase>
     <testcase name="Champions League Draw API GET /teams/:id should return 404 when the team does not exist" time="0.007" classname="should return 404 when the team does not exist">
     </testcase>
-    <testcase name="Champions League Draw API GET /teams/:id should return 400 for a non-numeric id" time="0.007" classname="should return 400 for a non-numeric id">
+    <testcase name="Champions League Draw API GET /teams/:id should return 400 for a non-numeric id" time="0.005" classname="should return 400 for a non-numeric id">
     </testcase>
   </testsuite>
-  <testsuite name="GET /draw/statistics" timestamp="2026-04-21T22:38:58" tests="2" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.291" failures="0">
-    <testcase name="Champions League Draw API GET /draw/statistics should return 404 when no draw exists" time="0.011" classname="should return 404 when no draw exists">
+  <testsuite name="GET /draw/statistics" timestamp="2026-04-21T23:49:02" tests="2" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.285" failures="0">
+    <testcase name="Champions League Draw API GET /draw/statistics should return 404 when no draw exists" time="0.022" classname="should return 404 when no draw exists">
     </testcase>
-    <testcase name="Champions League Draw API GET /draw/statistics should return aggregated statistics for the current draw" time="0.270" classname="should return aggregated statistics for the current draw">
+    <testcase name="Champions League Draw API GET /draw/statistics should return aggregated statistics for the current draw" time="0.251" classname="should return aggregated statistics for the current draw">
     </testcase>
   </testsuite>
-  <testsuite name="GET /health" timestamp="2026-04-21T22:38:59" tests="2" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.078" failures="0">
+  <testsuite name="GET /health" timestamp="2026-04-21T23:49:02" tests="2" file="C:\Users\franc\Documents\takenos-challenge\test\index.spec.ts" time="0.085" failures="0">
     <testcase name="Champions League Draw API GET /health should return 200 with health status" time="0.006" classname="should return 200 with health status">
     </testcase>
-    <testcase name="Champions League Draw API GET /health should include service information" time="0.006" classname="should include service information">
+    <testcase name="Champions League Draw API GET /health should include service information" time="0.009" classname="should include service information">
     </testcase>
   </testsuite>
 </testsuites>

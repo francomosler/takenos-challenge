@@ -1,9 +1,16 @@
 import { injectable } from "inversify";
+import { Prisma } from "@prisma";
 import { PrismaRepository } from "../../../shared/infrastructure/prisma.repository.js";
 import { Draw } from "../domain/draw.js";
 import { DrawRepository } from "../domain/draw.repository.js";
 import { Team } from "../domain/team.js";
 import { Country } from "../domain/country.js";
+import { DrawAlreadyExistsError } from "../domain/exceptions/draw-already-exists.error.js";
+
+// Sentinel value stored in Draw.activeSingleton for the active row.
+// Archived rows store NULL, which DBs treat as distinct from anything
+// (including other NULLs) under a UNIQUE constraint.
+const ACTIVE_SINGLETON: number = 1;
 
 @injectable()
 export class PrismaDrawRepository
@@ -25,82 +32,82 @@ export class PrismaDrawRepository
       }
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      const savedDraw = await tx.draw.upsert({
-        where: { id: primitives.id ?? 0 },
-        create: {
-          createdAt: primitives.createdAt,
-          drawTeamPots: {
-            create: teamPotAssignments,
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const savedDraw = await tx.draw.upsert({
+          where: { id: primitives.id ?? 0 },
+          create: {
+            createdAt: primitives.createdAt,
+            activeSingleton: ACTIVE_SINGLETON,
+            drawTeamPots: {
+              create: teamPotAssignments,
+            },
           },
-        },
-        update: {
-          createdAt: primitives.createdAt,
-          drawTeamPots: {
-            deleteMany: {},
-            create: teamPotAssignments,
+          update: {
+            createdAt: primitives.createdAt,
+            drawTeamPots: {
+              deleteMany: {},
+              create: teamPotAssignments,
+            },
           },
-        },
-      });
-
-      await tx.match.deleteMany({
-        where: { drawId: savedDraw.id },
-      });
-
-      if (primitives.matches.length > 0) {
-        await tx.match.createMany({
-          data: primitives.matches.map((match) => ({
-            drawId: savedDraw.id,
-            homeTeamId: match.homeTeam.id,
-            awayTeamId: match.awayTeam.id,
-            matchDay: match.matchDay,
-          })),
         });
+
+        await tx.match.deleteMany({
+          where: { drawId: savedDraw.id },
+        });
+
+        if (primitives.matches.length > 0) {
+          await tx.match.createMany({
+            data: primitives.matches.map((match) => ({
+              drawId: savedDraw.id,
+              homeTeamId: match.homeTeam.id,
+              awayTeamId: match.awayTeam.id,
+              matchDay: match.matchDay,
+            })),
+          });
+        }
+      });
+    } catch (error) {
+      // P2002 = unique constraint violation. With activeSingleton being
+      // UNIQUE, this is how the DB tells us two requests tried to create a
+      // draw concurrently. Map it to a domain error so the router returns 409.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new DrawAlreadyExistsError();
       }
-    });
+      throw error;
+    }
   }
 
   public async searchCurrent(): Promise<Draw | null> {
+    // Single query with nested includes so the whole aggregate is read as one
+    // DB snapshot. This removes the previous TOCTOU window between the three
+    // separate queries (draw / teams / matches) where a concurrent DELETE or
+    // re-creation could surface an inconsistent view to the client.
     const drawRecord = await this.model.findFirst({
+      where: { activeSingleton: ACTIVE_SINGLETON },
       include: {
         drawTeamPots: {
           include: {
-            team: {
-              include: {
-                country: true,
-              },
-            },
+            team: { include: { country: true } },
+          },
+        },
+        matches: {
+          orderBy: { id: "asc" },
+          include: {
+            homeTeam: { include: { country: true } },
+            awayTeam: { include: { country: true } },
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!drawRecord) {
       return null;
     }
-
-    const teams = await this.prisma.team.findMany({
-      include: {
-        country: true,
-      },
-      orderBy: {
-        id: "asc",
-      },
-    });
-
-    const teamMap = new Map<number, any>();
-    for (const team of teams) {
-      teamMap.set(team.id, team);
-    }
-
-    const matches = await this.prisma.match.findMany({
-      where: {
-        drawId: drawRecord.id,
-      },
-    });
 
     const pots: Array<{
       id: number;
@@ -115,42 +122,35 @@ export class PrismaDrawRepository
       const teamsInPot = drawRecord.drawTeamPots
         .filter((dtp: any) => dtp.potId === potId)
         .map((dtp: any) => {
-          const team = teamMap.get(dtp.teamId);
-          if (!team || !team.country) {
+          if (!dtp.team || !dtp.team.country) {
             throw new Error(
               `Team ${dtp.teamId} not found or has no country`
             );
           }
           return {
-            id: team.id,
-            name: team.name,
+            id: dtp.team.id,
+            name: dtp.team.name,
             country: {
-              id: team.country.id,
-              name: team.country.name,
+              id: dtp.team.country.id,
+              name: dtp.team.country.name,
             },
           };
         });
 
-      pots.push({
-        id: potId,
-        teams: teamsInPot,
-      });
+      pots.push({ id: potId, teams: teamsInPot });
     }
 
     return Draw.fromPrimitives({
       id: drawRecord.id,
       createdAt: drawRecord.createdAt,
       pots,
-      matches: matches.map((match: any) => {
-        const homeTeam = teamMap.get(match.homeTeamId);
-        const awayTeam = teamMap.get(match.awayTeamId);
-
-        if (!homeTeam || !homeTeam.country) {
+      matches: drawRecord.matches.map((match: any) => {
+        if (!match.homeTeam || !match.homeTeam.country) {
           throw new Error(
             `Home team ${match.homeTeamId} not found or has no country`
           );
         }
-        if (!awayTeam || !awayTeam.country) {
+        if (!match.awayTeam || !match.awayTeam.country) {
           throw new Error(
             `Away team ${match.awayTeamId} not found or has no country`
           );
@@ -160,19 +160,19 @@ export class PrismaDrawRepository
           id: match.id,
           drawId: match.drawId,
           homeTeam: {
-            id: homeTeam.id,
-            name: homeTeam.name,
+            id: match.homeTeam.id,
+            name: match.homeTeam.name,
             country: {
-              id: homeTeam.country.id,
-              name: homeTeam.country.name,
+              id: match.homeTeam.country.id,
+              name: match.homeTeam.country.name,
             },
           },
           awayTeam: {
-            id: awayTeam.id,
-            name: awayTeam.name,
+            id: match.awayTeam.id,
+            name: match.awayTeam.name,
             country: {
-              id: awayTeam.country.id,
-              name: awayTeam.country.name,
+              id: match.awayTeam.country.id,
+              name: match.awayTeam.country.name,
             },
           },
           matchDay: match.matchDay,
@@ -203,11 +203,17 @@ export class PrismaDrawRepository
     });
   }
 
-  public async deleteAll(): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      await tx.match.deleteMany();
-      await tx.drawTeamPot.deleteMany();
-      await tx.draw.deleteMany();
+  public async archiveCurrent(): Promise<void> {
+    // Releases the unique activeSingleton slot without deleting data.
+    // Using updateMany + where: { activeSingleton: 1 } keeps this idempotent
+    // and race-free: at most one row ever matches the predicate, and the DB
+    // applies the update atomically.
+    await this.model.updateMany({
+      where: { activeSingleton: ACTIVE_SINGLETON },
+      data: {
+        activeSingleton: null,
+        archivedAt: new Date(),
+      },
     });
   }
 }

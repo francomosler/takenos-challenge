@@ -124,9 +124,9 @@ sequenceDiagram
     C->>R: POST /draw
     R->>S: run()
     S->>DR: searchCurrent()
-    DR->>DB: SELECT draw
+    DR->>DB: SELECT draw WHERE activeSingleton = 1
     DB-->>DR: null | Draw
-    alt Draw existente
+    alt Draw existente (chequeo aplicativo)
         DR-->>S: Draw
         S-->>R: throws DrawAlreadyExistsError
         R-->>C: 409 Conflict
@@ -139,11 +139,18 @@ sequenceDiagram
         S->>DA: Draw.create(teams, pots)<br/>DrawService.generateMatches(...)
         DA-->>S: Match[]
         S->>DR: save(draw)
-        DR->>DB: INSERT transactional
-        DB-->>DR: ok
-        DR-->>S: ok
-        S-->>R: ok
-        R-->>C: 201 Created
+        DR->>DB: INSERT transactional<br/>(activeSingleton = 1)
+        alt Otro request concurrente ya insertó el activo
+            DB-->>DR: P2002 (UNIQUE activeSingleton)
+            DR-->>S: throws DrawAlreadyExistsError
+            S-->>R: throws DrawAlreadyExistsError
+            R-->>C: 409 Conflict
+        else OK
+            DB-->>DR: ok
+            DR-->>S: ok
+            S-->>R: ok
+            R-->>C: 201 Created
+        end
     end
 ```
 
@@ -199,6 +206,8 @@ erDiagram
     Draw {
         int id PK
         datetime createdAt
+        int activeSingleton UK "1 si activo, NULL si archivado"
+        datetime archivedAt "NULL si activo"
     }
     Pot {
         int id PK
@@ -226,6 +235,16 @@ erDiagram
 - **Manejo de errores**: excepciones tipadas (`DrawAlreadyExistsError`, `MatchNotFoundError`, `TeamNotFoundError`) traducidas a status HTTP en los routers. No se expone la stack ni el tipo al cliente.
 - **DI con Inversify**: facilita testear con mocks (los unit tests instancian el servicio con repos falsos) y permite agregar servicios sin modificar el sitio de uso.
 - **Prisma con adapter SQLite**: `better-sqlite3` para dev; cambiar a Postgres es cambiar el adapter en `prisma/lib/prisma.ts` + proveer `DATABASE_URL`.
+
+## Concurrencia
+
+El único endpoint que mutaba estado crítico era `POST /draw`, y tenía dos problemas.
+
+El primero era un TOCTOU clásico: el service hacía `searchCurrent()` y, si daba `null`, llamaba a `save()`. Dos requests en simultáneo podían pasar ambas por el `null` y terminar con dos draws activos. Lo resolví moviendo la garantía a la DB: agregué `activeSingleton Int? @unique` y `archivedAt DateTime?` en `Draw`. El draw vivo tiene `activeSingleton = 1`; al archivarse se pone en `NULL` (SQLite/Postgres/MySQL permiten múltiples `NULL` en un `UNIQUE`, así que los archivados no compiten por la slot). En `PrismaDrawRepository.save()` atrapo el `P2002` de Prisma y lo traduzco a `DrawAlreadyExistsError`, que el router devuelve como `409`. El chequeo con `searchCurrent()` antes del save sigue ahí, pero ahora es solo un fast-path para evitar trabajo en el caso común; la correctitud la garantiza el unique.
+
+Aproveché para renombrar `deleteAll()` a `archiveCurrent()` y cambiarlo a soft-archive: en vez de borrar, setea `activeSingleton = NULL` y `archivedAt = NOW()`. Los pots y matches viejos quedan en la DB, útiles para auditoría.
+
+El segundo problema era que `searchCurrent()` hacía tres queries separadas (`draw`, luego `teams`, luego `matches`) y armaba el agregado en memoria. Si alguien escribía en el medio, podías ver un `Draw` con matches de otro snapshot. Lo colapsé a un solo `findFirst` con `include` anidado en `drawTeamPots.team.country` y `matches.{homeTeam,awayTeam}.country`, que Prisma resuelve contra un snapshot consistente. De paso le puse `orderBy: { id: "asc" }` a los matches para que el orden sea determinista entre llamadas.
 
 ## Extensibilidad
 

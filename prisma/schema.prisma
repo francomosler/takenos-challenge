@@ -33,6 +33,13 @@ model Draw {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
 
+  // Singleton enforcement: exactly one active draw can exist at a time.
+  // When the draw is active this column holds the constant 1; when it is
+  // archived the column is set to NULL. SQLite / Postgres / MySQL all allow
+  // multiple NULLs in a unique constraint, so archived rows never collide.
+  activeSingleton Int?      @unique
+  archivedAt      DateTime?
+
   drawTeamPots DrawTeamPot[]
   matches      Match[]
 }

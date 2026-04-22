@@ -53,7 +53,7 @@ describe("SearchDrawStatisticsService — edge cases", () => {
       save: vi.fn(),
       searchCurrent: vi.fn(),
       findAllTeams: vi.fn(),
-      deleteAll: vi.fn(),
+      archiveCurrent: vi.fn(),
     } as unknown as DrawRepository;
     service = new SearchDrawStatisticsService(repo);
   });

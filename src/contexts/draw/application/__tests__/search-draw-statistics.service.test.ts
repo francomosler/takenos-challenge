@@ -61,7 +61,7 @@ describe('SearchDrawStatisticsService', () => {
       save: vi.fn(),
       searchCurrent: vi.fn(),
       findAllTeams: vi.fn(),
-      deleteAll: vi.fn(),
+      archiveCurrent: vi.fn(),
     } as any;
 
     service = new SearchDrawStatisticsService(mockRepository);

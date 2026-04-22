@@ -45,7 +45,7 @@ drawRouter.delete(
         return res.status(404).json({ message: "No draw found" });
       }
 
-      await drawRepository.deleteAll();
+      await drawRepository.archiveCurrent();
       return res.status(200).json({ message: "Draw deleted successfully" });
     } catch (error) {
       if (error instanceof Error) {
