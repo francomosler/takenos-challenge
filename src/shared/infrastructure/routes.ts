@@ -7,6 +7,8 @@ import YAML from "yaml";
 import { drawRouter } from "../../contexts/draw/presentation/draw.router.js";
 import { matchesRouter } from "../../contexts/matches/presentation/matches.router.js";
 import { teamsRouter } from "../../contexts/teams/presentation/teams.router.js";
+import { authRouter } from "./auth.router.js";
+import { authMiddleware } from "./auth.middleware.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +30,10 @@ function loadOpenApiSpec(): unknown | null {
 }
 
 export function registerRoutes(app: Express): void {
-  app.get("/health", (_req, res) => {
+  // Auth routes (public — no middleware)
+  app.use(authRouter);
+
+  app.get("/health", authMiddleware, (_req, res) => {
     return res.status(200).json({
       status: "ok",
       service: "champions-league-draw-api",
@@ -48,7 +53,8 @@ export function registerRoutes(app: Express): void {
     );
   }
 
-  app.use(drawRouter);
-  app.use(matchesRouter);
-  app.use(teamsRouter);
+  // Protected routes
+  app.use(authMiddleware, drawRouter);
+  app.use(authMiddleware, matchesRouter);
+  app.use(authMiddleware, teamsRouter);
 }
